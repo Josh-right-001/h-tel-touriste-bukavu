@@ -1,14 +1,36 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { motion } from "framer-motion"
-import { Building2, Phone, Mail, MapPin, DollarSign, Users, Shield, Save, Plus, Trash2, Check } from "lucide-react"
+import {
+  Building2,
+  Phone,
+  Mail,
+  MapPin,
+  DollarSign,
+  Users,
+  Shield,
+  Save,
+  Plus,
+  Trash2,
+  Check,
+  Sun,
+  Moon,
+  Monitor,
+  Globe,
+  User,
+  Camera,
+  ExternalLink,
+  Palette,
+} from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { createClient } from "@/lib/supabase/client"
+import { useLanguage, useTheme, useAdmin } from "@/lib/contexts"
 import type { HotelSettings, Admin } from "@/lib/types"
 
 export function SettingsModule() {
@@ -19,6 +41,25 @@ export function SettingsModule() {
   const [success, setSuccess] = useState(false)
   const [newAdminPhone, setNewAdminPhone] = useState("")
   const [newAdminName, setNewAdminName] = useState("")
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const { t, language, setLanguage } = useLanguage()
+  const { theme, setTheme, resolvedTheme } = useTheme()
+  const { admin: currentAdmin, updateProfile } = useAdmin()
+
+  const [profileData, setProfileData] = useState({
+    name: currentAdmin?.name || "",
+    avatar: currentAdmin?.avatar || "",
+  })
+
+  useEffect(() => {
+    if (currentAdmin) {
+      setProfileData({
+        name: currentAdmin.name,
+        avatar: currentAdmin.avatar || "",
+      })
+    }
+  }, [currentAdmin])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -59,6 +100,12 @@ export function SettingsModule() {
     setTimeout(() => setSuccess(false), 3000)
   }
 
+  const saveProfile = () => {
+    updateProfile(profileData)
+    setSuccess(true)
+    setTimeout(() => setSuccess(false), 3000)
+  }
+
   const addAdmin = async () => {
     if (!newAdminPhone || !newAdminName) return
 
@@ -92,16 +139,26 @@ export function SettingsModule() {
     setAdmins((prev) => prev.filter((a) => a.id !== id))
   }
 
+  const cardClass = resolvedTheme === "light" ? "bg-white border-slate-200 shadow-sm" : "glass-card border-[#D4AF37]/10"
+
+  const inputClass =
+    resolvedTheme === "light"
+      ? "bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400"
+      : "bg-white/5 border-white/10 text-white placeholder:text-white/30"
+
+  const textClass = resolvedTheme === "light" ? "text-slate-900" : "text-white"
+  const textMutedClass = resolvedTheme === "light" ? "text-slate-500" : "text-white/60"
+
   if (isLoading) {
     return (
       <div className="space-y-6">
         {[1, 2].map((i) => (
-          <Card key={i} className="glass-card border-[#D4AF37]/10">
+          <Card key={i} className={cardClass}>
             <CardContent className="p-6">
               <div className="animate-pulse space-y-4">
-                <div className="h-6 w-48 bg-white/10 rounded" />
-                <div className="h-10 w-full bg-white/10 rounded" />
-                <div className="h-10 w-full bg-white/10 rounded" />
+                <div className={`h-6 w-48 rounded ${resolvedTheme === "light" ? "bg-slate-200" : "bg-white/10"}`} />
+                <div className={`h-10 w-full rounded ${resolvedTheme === "light" ? "bg-slate-200" : "bg-white/10"}`} />
+                <div className={`h-10 w-full rounded ${resolvedTheme === "light" ? "bg-slate-200" : "bg-white/10"}`} />
               </div>
             </CardContent>
           </Card>
@@ -114,79 +171,100 @@ export function SettingsModule() {
     <div className="space-y-6">
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 className="text-2xl font-serif font-bold gold-gradient">Paramètres</h1>
-        <p className="text-white/60 mt-1">Configuration de l&apos;hôtel</p>
+        <h1 className="text-2xl font-serif font-bold gold-gradient">{t("settings")}</h1>
+        <p className={`mt-1 ${textMutedClass}`}>{t("hotelInfo")}</p>
       </motion.div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* Hotel info */}
-        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
-          <Card className="glass-card border-[#D4AF37]/10">
+      <Tabs defaultValue="hotel" className="space-y-6">
+        <TabsList className={`${resolvedTheme === "light" ? "bg-slate-100" : "bg-white/5"}`}>
+          <TabsTrigger value="hotel" className="gap-2">
+            <Building2 className="h-4 w-4" />
+            {t("hotelInfo")}
+          </TabsTrigger>
+          <TabsTrigger value="appearance" className="gap-2">
+            <Palette className="h-4 w-4" />
+            {t("appearance")}
+          </TabsTrigger>
+          <TabsTrigger value="profile" className="gap-2">
+            <User className="h-4 w-4" />
+            {t("adminProfile")}
+          </TabsTrigger>
+          <TabsTrigger value="security" className="gap-2">
+            <Shield className="h-4 w-4" />
+            {t("authorizedNumbers")}
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Hotel Info Tab */}
+        <TabsContent value="hotel">
+          <Card className={cardClass}>
             <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
+              <CardTitle className={`${textClass} flex items-center gap-2`}>
                 <Building2 className="h-5 w-5 text-[#D4AF37]" />
-                Informations de l&apos;hôtel
+                {t("hotelInfo")}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-white/80">Nom de l&apos;hôtel</Label>
-                <div className="relative">
-                  <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#D4AF37]/60" />
-                  <Input
-                    value={settings?.hotel_name || ""}
-                    onChange={(e) => setSettings((prev) => (prev ? { ...prev, hotel_name: e.target.value } : null))}
-                    className="pl-10 bg-white/5 border-white/10 text-white"
-                  />
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className={textMutedClass}>{t("hotelName")}</Label>
+                  <div className="relative">
+                    <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#D4AF37]/60" />
+                    <Input
+                      value={settings?.hotel_name || ""}
+                      onChange={(e) => setSettings((prev) => (prev ? { ...prev, hotel_name: e.target.value } : null))}
+                      className={`pl-10 ${inputClass}`}
+                    />
+                  </div>
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label className="text-white/80">Adresse</Label>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#D4AF37]/60" />
-                  <Input
-                    value={settings?.address || ""}
-                    onChange={(e) => setSettings((prev) => (prev ? { ...prev, address: e.target.value } : null))}
-                    className="pl-10 bg-white/5 border-white/10 text-white"
-                  />
+                <div className="space-y-2">
+                  <Label className={textMutedClass}>{t("address")}</Label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#D4AF37]/60" />
+                    <Input
+                      value={settings?.address || ""}
+                      onChange={(e) => setSettings((prev) => (prev ? { ...prev, address: e.target.value } : null))}
+                      className={`pl-10 ${inputClass}`}
+                    />
+                  </div>
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label className="text-white/80">Téléphone</Label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#D4AF37]/60" />
-                  <Input
-                    value={settings?.phone || ""}
-                    onChange={(e) => setSettings((prev) => (prev ? { ...prev, phone: e.target.value } : null))}
-                    className="pl-10 bg-white/5 border-white/10 text-white"
-                  />
+                <div className="space-y-2">
+                  <Label className={textMutedClass}>{t("phone")}</Label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#D4AF37]/60" />
+                    <Input
+                      value={settings?.phone || ""}
+                      onChange={(e) => setSettings((prev) => (prev ? { ...prev, phone: e.target.value } : null))}
+                      className={`pl-10 ${inputClass}`}
+                    />
+                  </div>
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label className="text-white/80">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#D4AF37]/60" />
-                  <Input
-                    type="email"
-                    value={settings?.email || ""}
-                    onChange={(e) => setSettings((prev) => (prev ? { ...prev, email: e.target.value } : null))}
-                    className="pl-10 bg-white/5 border-white/10 text-white"
-                  />
+                <div className="space-y-2">
+                  <Label className={textMutedClass}>{t("email")}</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#D4AF37]/60" />
+                    <Input
+                      type="email"
+                      value={settings?.email || ""}
+                      onChange={(e) => setSettings((prev) => (prev ? { ...prev, email: e.target.value } : null))}
+                      className={`pl-10 ${inputClass}`}
+                    />
+                  </div>
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label className="text-white/80">Devise</Label>
-                <div className="relative">
-                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#D4AF37]/60" />
-                  <Input
-                    value={settings?.currency || ""}
-                    onChange={(e) => setSettings((prev) => (prev ? { ...prev, currency: e.target.value } : null))}
-                    className="pl-10 bg-white/5 border-white/10 text-white"
-                  />
+                <div className="space-y-2">
+                  <Label className={textMutedClass}>{t("currency")}</Label>
+                  <div className="relative">
+                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#D4AF37]/60" />
+                    <Input
+                      value={settings?.currency || ""}
+                      onChange={(e) => setSettings((prev) => (prev ? { ...prev, currency: e.target.value } : null))}
+                      className={`pl-10 ${inputClass}`}
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -204,43 +282,202 @@ export function SettingsModule() {
                 ) : success ? (
                   <>
                     <Check className="h-4 w-4 mr-2" />
-                    Enregistré
+                    {t("save")}
                   </>
                 ) : (
                   <>
                     <Save className="h-4 w-4 mr-2" />
-                    Enregistrer
+                    {t("save")}
                   </>
                 )}
               </Button>
             </CardContent>
           </Card>
-        </motion.div>
+        </TabsContent>
 
-        {/* Admins */}
-        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
-          <Card className="glass-card border-[#D4AF37]/10">
+        {/* Appearance Tab */}
+        <TabsContent value="appearance">
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Theme Selection */}
+            <Card className={cardClass}>
+              <CardHeader>
+                <CardTitle className={`${textClass} flex items-center gap-2`}>
+                  <Palette className="h-5 w-5 text-[#D4AF37]" />
+                  {t("theme")}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { value: "light", icon: Sun, label: t("lightTheme") },
+                    { value: "dark", icon: Moon, label: t("darkTheme") },
+                    { value: "system", icon: Monitor, label: t("systemTheme") },
+                  ].map((option) => (
+                    <motion.button
+                      key={option.value}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setTheme(option.value as "light" | "dark" | "system")}
+                      className={`p-4 rounded-xl flex flex-col items-center gap-2 transition-all ${
+                        theme === option.value
+                          ? "bg-[#D4AF37]/20 border-2 border-[#D4AF37]"
+                          : resolvedTheme === "light"
+                            ? "bg-slate-50 border-2 border-transparent hover:border-slate-200"
+                            : "bg-white/5 border-2 border-transparent hover:border-white/10"
+                      }`}
+                    >
+                      <option.icon
+                        className={`h-6 w-6 ${theme === option.value ? "text-[#D4AF37]" : textMutedClass}`}
+                      />
+                      <span
+                        className={`text-sm ${theme === option.value ? "text-[#D4AF37] font-medium" : textMutedClass}`}
+                      >
+                        {option.label}
+                      </span>
+                    </motion.button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Language Selection */}
+            <Card className={cardClass}>
+              <CardHeader>
+                <CardTitle className={`${textClass} flex items-center gap-2`}>
+                  <Globe className="h-5 w-5 text-[#D4AF37]" />
+                  {t("language")}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { value: "fr", label: "Français", flag: "🇫🇷" },
+                    { value: "en", label: "English", flag: "🇬🇧" },
+                  ].map((option) => (
+                    <motion.button
+                      key={option.value}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setLanguage(option.value as "fr" | "en")}
+                      className={`p-4 rounded-xl flex items-center gap-3 transition-all ${
+                        language === option.value
+                          ? "bg-[#D4AF37]/20 border-2 border-[#D4AF37]"
+                          : resolvedTheme === "light"
+                            ? "bg-slate-50 border-2 border-transparent hover:border-slate-200"
+                            : "bg-white/5 border-2 border-transparent hover:border-white/10"
+                      }`}
+                    >
+                      <span className="text-2xl">{option.flag}</span>
+                      <span className={`font-medium ${language === option.value ? "text-[#D4AF37]" : textClass}`}>
+                        {option.label}
+                      </span>
+                    </motion.button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* Profile Tab */}
+        <TabsContent value="profile">
+          <Card className={cardClass}>
             <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
+              <CardTitle className={`${textClass} flex items-center gap-2`}>
+                <User className="h-5 w-5 text-[#D4AF37]" />
+                {t("adminProfile")}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Avatar */}
+              <div className="flex flex-col items-center gap-4">
+                <div className="relative">
+                  <div className="h-24 w-24 rounded-full bg-[#D4AF37]/20 flex items-center justify-center overflow-hidden">
+                    {profileData.avatar ? (
+                      <img
+                        src={profileData.avatar || "/placeholder.svg"}
+                        alt="Avatar"
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-3xl font-bold text-[#D4AF37]">
+                        {profileData.name.charAt(0).toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="absolute bottom-0 right-0 h-8 w-8 rounded-full bg-[#D4AF37] flex items-center justify-center text-[#071428] hover:bg-[#F4D03F] transition-colors"
+                  >
+                    <Camera className="h-4 w-4" />
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) {
+                        const reader = new FileReader()
+                        reader.onloadend = () => {
+                          setProfileData({ ...profileData, avatar: reader.result as string })
+                        }
+                        reader.readAsDataURL(file)
+                      }
+                    }}
+                  />
+                </div>
+                <p className={`text-sm ${textMutedClass}`}>{t("uploadPhoto")}</p>
+              </div>
+
+              {/* Name */}
+              <div className="space-y-2">
+                <Label className={textMutedClass}>{t("name")}</Label>
+                <Input
+                  value={profileData.name}
+                  onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
+                  className={inputClass}
+                />
+              </div>
+
+              <Button
+                onClick={saveProfile}
+                className="w-full bg-gradient-to-r from-[#D4AF37] to-[#F4D03F] text-[#071428] font-semibold"
+              >
+                <Save className="h-4 w-4 mr-2" />
+                {t("save")}
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Security Tab */}
+        <TabsContent value="security">
+          <Card className={cardClass}>
+            <CardHeader>
+              <CardTitle className={`${textClass} flex items-center gap-2`}>
                 <Shield className="h-5 w-5 text-[#D4AF37]" />
-                Numéros autorisés
+                {t("authorizedNumbers")}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Add new admin */}
-              <div className="p-4 rounded-lg bg-white/5 border border-white/10 space-y-3">
+              <div
+                className={`p-4 rounded-lg space-y-3 ${resolvedTheme === "light" ? "bg-slate-50 border border-slate-200" : "bg-white/5 border border-white/10"}`}
+              >
                 <Input
-                  placeholder="Nom"
+                  placeholder={t("name")}
                   value={newAdminName}
                   onChange={(e) => setNewAdminName(e.target.value)}
-                  className="bg-white/5 border-white/10 text-white placeholder:text-white/30"
+                  className={inputClass}
                 />
                 <div className="flex gap-2">
                   <Input
                     placeholder="+243 XXX XXX XXX"
                     value={newAdminPhone}
                     onChange={(e) => setNewAdminPhone(e.target.value)}
-                    className="bg-white/5 border-white/10 text-white placeholder:text-white/30"
+                    className={inputClass}
                   />
                   <Button
                     onClick={addAdmin}
@@ -257,19 +494,27 @@ export function SettingsModule() {
                 {admins.map((admin) => (
                   <div
                     key={admin.id}
-                    className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/10"
+                    className={`flex items-center justify-between p-3 rounded-lg ${
+                      resolvedTheme === "light"
+                        ? "bg-slate-50 border border-slate-200"
+                        : "bg-white/5 border border-white/10"
+                    }`}
                   >
                     <div className="flex items-center gap-3">
                       <div
                         className={`h-8 w-8 rounded-full flex items-center justify-center ${
-                          admin.is_active ? "bg-emerald-500/20" : "bg-white/10"
+                          admin.is_active
+                            ? "bg-emerald-500/20"
+                            : resolvedTheme === "light"
+                              ? "bg-slate-200"
+                              : "bg-white/10"
                         }`}
                       >
-                        <Users className={`h-4 w-4 ${admin.is_active ? "text-emerald-400" : "text-white/40"}`} />
+                        <Users className={`h-4 w-4 ${admin.is_active ? "text-emerald-400" : textMutedClass}`} />
                       </div>
                       <div>
-                        <p className="font-medium text-white">{admin.name}</p>
-                        <p className="text-xs text-white/50">{admin.phone_number}</p>
+                        <p className={`font-medium ${textClass}`}>{admin.name}</p>
+                        <p className={`text-xs ${textMutedClass}`}>{admin.phone_number}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -281,7 +526,7 @@ export function SettingsModule() {
                         variant="ghost"
                         size="icon"
                         onClick={() => deleteAdmin(admin.id)}
-                        className="text-white/40 hover:text-red-400"
+                        className={`${textMutedClass} hover:text-red-400`}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -291,8 +536,29 @@ export function SettingsModule() {
               </div>
             </CardContent>
           </Card>
-        </motion.div>
-      </div>
+        </TabsContent>
+      </Tabs>
+
+      {/* Developer Credits */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.5 }}
+        className={`text-center py-6 border-t ${resolvedTheme === "light" ? "border-slate-200" : "border-[#D4AF37]/10"}`}
+      >
+        <p className={`text-sm ${textMutedClass}`}>
+          {t("developedBy")}{" "}
+          <a
+            href="https://josh-right-congo.netlify.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[#D4AF37] hover:text-[#F4D03F] font-medium inline-flex items-center gap-1 transition-colors"
+          >
+            Josh R
+            <ExternalLink className="h-3 w-3" />
+          </a>
+        </p>
+      </motion.div>
     </div>
   )
 }

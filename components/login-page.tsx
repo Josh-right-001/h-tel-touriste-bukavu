@@ -1,14 +1,14 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
-import { motion } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
 import Image from "next/image"
 import { Phone, ArrowRight, AlertCircle, Shield } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { createClient } from "@/lib/supabase/client"
+import { useLanguage, useTheme } from "@/lib/contexts"
 
 interface LoginPageProps {
   onSuccess: (admin: { name: string; phone: string }) => void
@@ -20,22 +20,18 @@ export function LoginPage({ onSuccess }: LoginPageProps) {
   const [phoneNumber, setPhoneNumber] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const { t } = useLanguage()
+  const { resolvedTheme } = useTheme()
 
   const formatPhoneNumber = (value: string) => {
-    // Remove non-digits
     let digits = value.replace(/\D/g, "")
-
-    // Add + prefix if starts with 243
     if (digits.startsWith("243")) {
       return "+" + digits
     }
-
-    // If starts with 0, replace with +243
     if (digits.startsWith("0")) {
       digits = "243" + digits.slice(1)
       return "+" + digits
     }
-
     return value
   }
 
@@ -46,15 +42,13 @@ export function LoginPage({ onSuccess }: LoginPageProps) {
 
     const formattedNumber = formatPhoneNumber(phoneNumber)
 
-    // Check against authorized numbers first (offline check)
     if (!AUTHORIZED_NUMBERS.includes(formattedNumber)) {
-      setError("Numéro non autorisé. Accès refusé.")
+      setError(t("unauthorizedNumber"))
       setIsLoading(false)
       return
     }
 
     try {
-      // Verify against database
       const supabase = createClient()
       const { data: admin, error: dbError } = await supabase
         .from("admins")
@@ -64,19 +58,17 @@ export function LoginPage({ onSuccess }: LoginPageProps) {
         .single()
 
       if (dbError || !admin) {
-        setError("Numéro non autorisé. Accès refusé.")
+        setError(t("unauthorizedNumber"))
         setIsLoading(false)
         return
       }
 
-      // Success
       onSuccess({ name: admin.name, phone: admin.phone_number })
     } catch {
-      // If database check fails, fallback to local check
       if (AUTHORIZED_NUMBERS.includes(formattedNumber)) {
         onSuccess({ name: "Administrateur", phone: formattedNumber })
       } else {
-        setError("Erreur de connexion. Veuillez réessayer.")
+        setError(t("connectionError"))
       }
     } finally {
       setIsLoading(false)
@@ -88,10 +80,11 @@ export function LoginPage({ onSuccess }: LoginPageProps) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="min-h-screen flex items-center justify-center p-4"
+      className={`min-h-screen flex items-center justify-center p-4 ${
+        resolvedTheme === "light" ? "bg-gradient-to-br from-slate-50 to-slate-100" : ""
+      }`}
     >
       <div className="w-full max-w-md">
-        {/* Logo and header */}
         <motion.div
           initial={{ y: -20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -101,25 +94,32 @@ export function LoginPage({ onSuccess }: LoginPageProps) {
           <motion.div whileHover={{ scale: 1.05 }} className="inline-block mb-6">
             <Image src="/logo.png" alt="Hôtel Touriste" width={100} height={100} className="mx-auto" priority />
           </motion.div>
-          <h1 className="text-3xl font-serif font-bold gold-gradient mb-2">Connexion</h1>
-          <p className="text-white/60 text-sm">Accès Administratif Sécurisé</p>
+          <h1 className="text-3xl font-serif font-bold gold-gradient mb-2">{t("login")}</h1>
+          <p className={`text-sm ${resolvedTheme === "light" ? "text-slate-600" : "text-white/60"}`}>
+            {t("loginSecure")}
+          </p>
         </motion.div>
 
-        {/* Login form */}
         <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.3 }}
-          className="glass-card rounded-2xl p-6"
+          className={`rounded-2xl p-6 ${
+            resolvedTheme === "light" ? "bg-white shadow-xl border border-slate-200" : "glass-card"
+          }`}
         >
           <div className="flex items-center gap-2 mb-6 text-[#D4AF37]">
             <Shield className="h-5 w-5" />
-            <span className="text-sm font-medium">Connexion WhatsApp sécurisée</span>
+            <span className="text-sm font-medium">{t("loginSecure")}</span>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm text-white/80 font-medium">Numéro WhatsApp</label>
+              <label
+                className={`text-sm font-medium ${resolvedTheme === "light" ? "text-slate-700" : "text-white/80"}`}
+              >
+                {t("phone")}
+              </label>
               <div className="relative">
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-[#D4AF37]/60" />
                 <Input
@@ -127,20 +127,23 @@ export function LoginPage({ onSuccess }: LoginPageProps) {
                   placeholder="+243 XXX XXX XXX"
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value)}
-                  className="pl-10 h-12 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[#D4AF37]/50 focus:ring-[#D4AF37]/20"
+                  className={`pl-10 h-12 ${
+                    resolvedTheme === "light"
+                      ? "bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400"
+                      : "bg-white/5 border-white/10 text-white placeholder:text-white/30"
+                  } focus:border-[#D4AF37]/50 focus:ring-[#D4AF37]/20`}
                   required
                 />
               </div>
             </div>
 
-            {/* Error message */}
             <AnimatePresence mode="wait">
               {error && (
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400"
+                  className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500"
                 >
                   <AlertCircle className="h-4 w-4 flex-shrink-0" />
                   <span className="text-sm">{error}</span>
@@ -161,23 +164,24 @@ export function LoginPage({ onSuccess }: LoginPageProps) {
                 />
               ) : (
                 <>
-                  Se connecter
+                  {t("login")}
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </>
               )}
             </Button>
           </form>
 
-          {/* Address */}
-          <div className="mt-6 pt-6 border-t border-white/10 text-center">
-            <p className="text-xs text-white/40">Hôtel Touriste — Place Mulamba, Réf : 261 Ave Lumumba, Bukavu</p>
+          <div
+            className={`mt-6 pt-6 border-t text-center ${
+              resolvedTheme === "light" ? "border-slate-200" : "border-white/10"
+            }`}
+          >
+            <p className={`text-xs ${resolvedTheme === "light" ? "text-slate-500" : "text-white/40"}`}>
+              Hôtel Touriste — Place Mulamba, Réf : 261 Ave Lumumba, Bukavu
+            </p>
           </div>
         </motion.div>
       </div>
     </motion.div>
   )
-}
-
-function AnimatePresence({ children, mode }: { children: React.ReactNode; mode?: string }) {
-  return <>{children}</>
 }

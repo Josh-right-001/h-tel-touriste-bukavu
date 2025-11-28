@@ -21,6 +21,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/client"
+import { useLanguage, useTheme } from "@/lib/contexts"
 
 interface DashboardHomeProps {
   onNavigate: (module: string) => void
@@ -36,46 +37,6 @@ interface Stats {
   todayCheckIns: number
 }
 
-const quickActions = [
-  {
-    id: "reception",
-    label: "Réception",
-    icon: UserPlus,
-    color: "from-emerald-500 to-emerald-600",
-    description: "Enregistrer un client",
-  },
-  { id: "clients", label: "Clients", icon: Users, color: "from-blue-500 to-blue-600", description: "Liste & fidélité" },
-  {
-    id: "rooms",
-    label: "Chambres",
-    icon: BedDouble,
-    color: "from-purple-500 to-purple-600",
-    description: "Gestion & statuts",
-  },
-  {
-    id: "history",
-    label: "Historique",
-    icon: History,
-    color: "from-orange-500 to-orange-600",
-    description: "Export JSON/PDF",
-  },
-  {
-    id: "notifications",
-    label: "Notifications",
-    icon: Bell,
-    color: "from-red-500 to-red-600",
-    description: "Alertes temps réel",
-  },
-  { id: "bot", label: "Bot Messages", icon: Bot, color: "from-cyan-500 to-cyan-600", description: "Automatisation" },
-  {
-    id: "settings",
-    label: "Paramètres",
-    icon: Settings,
-    color: "from-gray-500 to-gray-600",
-    description: "Configuration",
-  },
-]
-
 export function DashboardHome({ onNavigate, onClientAction }: DashboardHomeProps) {
   const [stats, setStats] = useState<Stats>({
     totalClients: 0,
@@ -86,13 +47,66 @@ export function DashboardHome({ onNavigate, onClientAction }: DashboardHomeProps
     todayCheckIns: 0,
   })
   const [isLoading, setIsLoading] = useState(true)
+  const { t } = useLanguage()
+  const { resolvedTheme } = useTheme()
+
+  const quickActions = [
+    {
+      id: "reception",
+      label: t("reception"),
+      icon: UserPlus,
+      color: "from-emerald-500 to-emerald-600",
+      description: t("registerClient"),
+    },
+    {
+      id: "clients",
+      label: t("clients"),
+      icon: Users,
+      color: "from-blue-500 to-blue-600",
+      description: t("clientList"),
+    },
+    {
+      id: "rooms",
+      label: t("rooms"),
+      icon: BedDouble,
+      color: "from-purple-500 to-purple-600",
+      description: t("roomManagement"),
+    },
+    {
+      id: "history",
+      label: t("history"),
+      icon: History,
+      color: "from-orange-500 to-orange-600",
+      description: t("exportJson"),
+    },
+    {
+      id: "notifications",
+      label: t("notifications"),
+      icon: Bell,
+      color: "from-red-500 to-red-600",
+      description: t("notifications"),
+    },
+    {
+      id: "bot",
+      label: t("botMessages"),
+      icon: Bot,
+      color: "from-cyan-500 to-cyan-600",
+      description: t("messageAutomation"),
+    },
+    {
+      id: "settings",
+      label: t("settings"),
+      icon: Settings,
+      color: "from-gray-500 to-gray-600",
+      description: t("settings"),
+    },
+  ]
 
   useEffect(() => {
     const fetchStats = async () => {
       const supabase = createClient()
 
       try {
-        // Fetch all stats in parallel
         const [clientsRes, roomsRes, reservationsRes] = await Promise.all([
           supabase.from("clients").select("*", { count: "exact", head: true }),
           supabase.from("rooms").select("*"),
@@ -103,7 +117,6 @@ export function DashboardHome({ onNavigate, onClientAction }: DashboardHomeProps
         const availableRooms = rooms.filter((r) => r.status === "Disponible").length
         const occupiedRooms = rooms.filter((r) => r.status === "Occupée").length
 
-        // Today's check-ins
         const today = new Date().toISOString().split("T")[0]
         const { count: todayCheckIns } = await supabase
           .from("reservations")
@@ -129,13 +142,21 @@ export function DashboardHome({ onNavigate, onClientAction }: DashboardHomeProps
   }, [])
 
   const statCards = [
-    { label: "Total Clients", value: stats.totalClients, icon: Users, color: "text-blue-400" },
-    { label: "Chambres Disponibles", value: stats.availableRooms, icon: CheckCircle, color: "text-emerald-400" },
-    { label: "Chambres Occupées", value: stats.occupiedRooms, icon: BedDouble, color: "text-orange-400" },
-    { label: "Réservations Actives", value: stats.activeReservations, icon: Calendar, color: "text-purple-400" },
-    { label: "Check-ins Aujourd'hui", value: stats.todayCheckIns, icon: Clock, color: "text-cyan-400" },
-    { label: "Total Chambres", value: stats.totalRooms, icon: Building2, color: "text-[#D4AF37]" },
+    { label: t("totalClients"), value: stats.totalClients, icon: Users, color: "text-blue-400" },
+    { label: t("availableRooms"), value: stats.availableRooms, icon: CheckCircle, color: "text-emerald-400" },
+    { label: t("occupiedRooms"), value: stats.occupiedRooms, icon: BedDouble, color: "text-orange-400" },
+    { label: t("activeReservations"), value: stats.activeReservations, icon: Calendar, color: "text-purple-400" },
+    { label: t("todayCheckins"), value: stats.todayCheckIns, icon: Clock, color: "text-cyan-400" },
+    { label: t("totalRooms"), value: stats.totalRooms, icon: Building2, color: "text-[#D4AF37]" },
   ]
+
+  const cardClass =
+    resolvedTheme === "light"
+      ? "bg-white border-slate-200 shadow-sm hover:shadow-md"
+      : "glass-card border-[#D4AF37]/10 hover:border-[#D4AF37]/30"
+
+  const textClass = resolvedTheme === "light" ? "text-slate-900" : "text-white"
+  const textMutedClass = resolvedTheme === "light" ? "text-slate-500" : "text-white/60"
 
   return (
     <div className="space-y-6">
@@ -143,19 +164,19 @@ export function DashboardHome({ onNavigate, onClientAction }: DashboardHomeProps
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="glass-card rounded-2xl p-6"
+        className={`rounded-2xl p-6 ${cardClass}`}
       >
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-serif font-bold gold-gradient">Bienvenue sur le Dashboard</h1>
-            <p className="text-white/60 mt-1">Gérez votre hôtel en toute simplicité</p>
+            <h1 className="text-2xl font-serif font-bold gold-gradient">{t("welcome")}</h1>
+            <p className={`mt-1 ${textMutedClass}`}>{t("manageHotel")}</p>
           </div>
           <Button
             onClick={() => onClientAction()}
             className="bg-gradient-to-r from-[#D4AF37] to-[#F4D03F] hover:from-[#F4D03F] hover:to-[#D4AF37] text-[#071428] font-semibold ripple"
           >
             <UserPlus className="h-4 w-4 mr-2" />
-            Nouveau Client
+            {t("newClient")}
           </Button>
         </div>
       </motion.div>
@@ -169,17 +190,19 @@ export function DashboardHome({ onNavigate, onClientAction }: DashboardHomeProps
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
           >
-            <Card className="glass-card border-[#D4AF37]/10 hover:border-[#D4AF37]/30 transition-all duration-300">
+            <Card className={`${cardClass} transition-all duration-300`}>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-2">
                   <stat.icon className={`h-5 w-5 ${stat.color}`} />
                   {isLoading ? (
-                    <div className="h-6 w-8 bg-white/10 rounded animate-pulse" />
+                    <div
+                      className={`h-6 w-8 rounded animate-pulse ${resolvedTheme === "light" ? "bg-slate-200" : "bg-white/10"}`}
+                    />
                   ) : (
-                    <span className="text-2xl font-bold text-white">{stat.value}</span>
+                    <span className={`text-2xl font-bold ${textClass}`}>{stat.value}</span>
                   )}
                 </div>
-                <p className="text-xs text-white/50">{stat.label}</p>
+                <p className={`text-xs ${textMutedClass}`}>{stat.label}</p>
               </CardContent>
             </Card>
           </motion.div>
@@ -188,7 +211,7 @@ export function DashboardHome({ onNavigate, onClientAction }: DashboardHomeProps
 
       {/* Quick actions */}
       <div>
-        <h2 className="text-lg font-semibold text-white mb-4">Actions Rapides</h2>
+        <h2 className={`text-lg font-semibold mb-4 ${textClass}`}>{t("quickActions")}</h2>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {quickActions.map((action, index) => (
             <motion.button
@@ -199,27 +222,31 @@ export function DashboardHome({ onNavigate, onClientAction }: DashboardHomeProps
               onClick={() => onNavigate(action.id)}
               whileHover={{ scale: 1.02, y: -2 }}
               whileTap={{ scale: 0.98 }}
-              className="glass-card rounded-xl p-4 text-left group hover:border-[#D4AF37]/30 transition-all duration-300"
+              className={`rounded-xl p-4 text-left group transition-all duration-300 ${cardClass}`}
             >
               <div
                 className={`h-10 w-10 rounded-lg bg-gradient-to-br ${action.color} flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}
               >
                 <action.icon className="h-5 w-5 text-white" />
               </div>
-              <h3 className="font-semibold text-white group-hover:text-[#D4AF37] transition-colors">{action.label}</h3>
-              <p className="text-xs text-white/50 mt-1">{action.description}</p>
-              <ArrowRight className="h-4 w-4 text-white/30 group-hover:text-[#D4AF37] mt-2 transition-all group-hover:translate-x-1" />
+              <h3 className={`font-semibold group-hover:text-[#D4AF37] transition-colors ${textClass}`}>
+                {action.label}
+              </h3>
+              <p className={`text-xs mt-1 ${textMutedClass}`}>{action.description}</p>
+              <ArrowRight
+                className={`h-4 w-4 mt-2 transition-all group-hover:translate-x-1 ${textMutedClass} group-hover:text-[#D4AF37]`}
+              />
             </motion.button>
           ))}
         </div>
       </div>
 
-      {/* Recent activity placeholder */}
-      <Card className="glass-card border-[#D4AF37]/10">
+      {/* Recent activity */}
+      <Card className={cardClass}>
         <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
+          <CardTitle className={`${textClass} flex items-center gap-2`}>
             <TrendingUp className="h-5 w-5 text-[#D4AF37]" />
-            Activité Récente
+            {t("recentActivity")}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -227,16 +254,20 @@ export function DashboardHome({ onNavigate, onClientAction }: DashboardHomeProps
             {[1, 2, 3].map((i) => (
               <div
                 key={i}
-                className="flex items-center gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
+                className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
+                  resolvedTheme === "light" ? "bg-slate-50 hover:bg-slate-100" : "bg-white/5 hover:bg-white/10"
+                }`}
               >
                 <div className="h-8 w-8 rounded-full bg-[#D4AF37]/20 flex items-center justify-center">
                   <Users className="h-4 w-4 text-[#D4AF37]" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm text-white">Nouveau client enregistré</p>
-                  <p className="text-xs text-white/50">Il y a {i * 5} minutes</p>
+                  <p className={`text-sm ${textClass}`}>
+                    {t("newClient")} #{i}
+                  </p>
+                  <p className={`text-xs ${textMutedClass}`}>Il y a {i * 5} minutes</p>
                 </div>
-                <AlertCircle className="h-4 w-4 text-white/30" />
+                <AlertCircle className={textMutedClass} />
               </div>
             ))}
           </div>
