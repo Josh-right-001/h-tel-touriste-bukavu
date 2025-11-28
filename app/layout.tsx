@@ -2,10 +2,12 @@ import type React from "react"
 import type { Metadata, Viewport } from "next"
 import { Playfair_Display, Inter } from "next/font/google"
 import "./globals.css"
-import { AppProviders } from "@/lib/contexts"
+import dynamic from "next/dynamic"
 
 const playfair = Playfair_Display({ subsets: ["latin"], variable: "--font-playfair" })
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" })
+
+const AppProviders = dynamic(() => import("@/lib/contexts").then((mod) => mod.AppProviders), { ssr: false })
 
 export const metadata: Metadata = {
   title: "Hôtel Touriste | Bukavu",

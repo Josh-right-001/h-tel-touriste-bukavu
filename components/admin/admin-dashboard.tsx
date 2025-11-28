@@ -85,6 +85,12 @@ export function AdminDashboard({ admin, onLogout }: AdminDashboardProps) {
     const fetchNotifications = async () => {
       try {
         const supabase = createClient()
+        // Skip if Supabase is not configured
+        if (!supabase) {
+          setUnreadNotifications(0)
+          return
+        }
+
         const { count } = await supabase
           .from("notifications")
           .select("*", { count: "exact", head: true })
@@ -92,7 +98,8 @@ export function AdminDashboard({ admin, onLogout }: AdminDashboardProps) {
 
         setUnreadNotifications(count || 0)
       } catch {
-        // Error fetching notifications
+        // Error fetching notifications - silently fail
+        setUnreadNotifications(0)
       }
     }
 

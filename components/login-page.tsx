@@ -6,7 +6,6 @@ import { motion, AnimatePresence } from "framer-motion"
 import Image from "next/image"
 import { Phone, ArrowRight, AlertCircle, Shield } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { createClient } from "@/lib/supabase/client"
 import { useLanguage, useTheme } from "@/lib/contexts"
 
@@ -50,6 +49,18 @@ export function LoginPage({ onSuccess }: LoginPageProps) {
 
     try {
       const supabase = createClient()
+
+      // If Supabase is not configured, use fallback
+      if (!supabase) {
+        if (AUTHORIZED_NUMBERS.includes(formattedNumber)) {
+          onSuccess({ name: "Administrateur", phone: formattedNumber })
+        } else {
+          setError(t("unauthorizedNumber"))
+        }
+        setIsLoading(false)
+        return
+      }
+
       const { data: admin, error: dbError } = await supabase
         .from("admins")
         .select("*")
@@ -193,3 +204,5 @@ export function LoginPage({ onSuccess }: LoginPageProps) {
     </motion.div>
   )
 }
+
+import { Input } from "@/components/ui/input"

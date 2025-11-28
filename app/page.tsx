@@ -2,13 +2,10 @@
 
 import { useState, useEffect, useCallback } from "react"
 import dynamic from "next/dynamic"
-import { useAdmin } from "@/lib/contexts"
 
 const LoadingScreen = dynamic(
   () => import("@/components/loading-screen").then((mod) => ({ default: mod.LoadingScreen })),
-  {
-    ssr: false,
-  },
+  { ssr: false },
 )
 
 const LoginPage = dynamic(() => import("@/components/login-page").then((mod) => ({ default: mod.LoginPage })), {
@@ -17,29 +14,32 @@ const LoginPage = dynamic(() => import("@/components/login-page").then((mod) => 
 
 const AdminDashboard = dynamic(
   () => import("@/components/admin/admin-dashboard").then((mod) => ({ default: mod.AdminDashboard })),
-  {
-    ssr: false,
-  },
+  { ssr: false },
 )
 
 const InstallPrompt = dynamic(
   () => import("@/components/install-prompt").then((mod) => ({ default: mod.InstallPrompt })),
-  {
-    ssr: false,
-  },
+  { ssr: false },
 )
+
+interface AdminData {
+  name: string
+  phone: string
+  role: string
+}
 
 export default function Home() {
   const [isLoading, setIsLoading] = useState(true)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [mounted, setMounted] = useState(false)
-  const { admin, setAdmin } = useAdmin()
+  const [admin, setAdmin] = useState<AdminData | null>(null)
 
   useEffect(() => {
     setMounted(true)
 
+    // Load session from localStorage
     try {
-      if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
+      if (typeof window !== "undefined") {
         const savedSession = localStorage.getItem("hotelTouristeSession")
         if (savedSession) {
           const session = JSON.parse(savedSession)
@@ -54,33 +54,31 @@ export default function Home() {
     }
   }, [])
 
-  const handleLoginSuccess = useCallback(
-    (adminData: { name: string; phone: string }) => {
-      setAdmin({ name: adminData.name, phone: adminData.phone, role: "admin" })
-      setIsAuthenticated(true)
-      try {
-        if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
-          localStorage.setItem("hotelTouristeSession", JSON.stringify(adminData))
-        }
-      } catch {
-        // localStorage not available
+  const handleLoginSuccess = useCallback((adminData: { name: string; phone: string }) => {
+    const newAdmin = { name: adminData.name, phone: adminData.phone, role: "admin" }
+    setAdmin(newAdmin)
+    setIsAuthenticated(true)
+    try {
+      if (typeof window !== "undefined") {
+        localStorage.setItem("hotelTouristeSession", JSON.stringify(adminData))
       }
-    },
-    [setAdmin],
-  )
+    } catch {
+      // localStorage not available
+    }
+  }, [])
 
   const handleLogout = useCallback(() => {
     setAdmin(null)
     setIsAuthenticated(false)
     try {
-      if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
+      if (typeof window !== "undefined") {
         localStorage.removeItem("hotelTouristeSession")
         localStorage.removeItem("hotelTouristeAdminProfile")
       }
     } catch {
       // localStorage not available
     }
-  }, [setAdmin])
+  }, [])
 
   if (!mounted) {
     return (

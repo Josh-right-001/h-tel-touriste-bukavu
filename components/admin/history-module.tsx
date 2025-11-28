@@ -41,6 +41,13 @@ export function HistoryModule() {
       try {
         const supabase = createClient()
 
+        // Skip if Supabase is not configured
+        if (!supabase) {
+          setReservations([])
+          setIsLoading(false)
+          return
+        }
+
         const { data: reservationsData } = await supabase
           .from("reservations")
           .select(`
@@ -52,7 +59,8 @@ export function HistoryModule() {
 
         setReservations(reservationsData || [])
       } catch {
-        // Error fetching data
+        // Error fetching data - silently fail
+        setReservations([])
       } finally {
         setIsLoading(false)
       }
@@ -75,6 +83,7 @@ export function HistoryModule() {
     })
 
   const exportJSON = useCallback(() => {
+    if (typeof window === "undefined") return
     const dataStr = JSON.stringify(filteredReservations, null, 2)
     const blob = new Blob([dataStr], { type: "application/json" })
     const url = URL.createObjectURL(blob)
@@ -88,6 +97,7 @@ export function HistoryModule() {
   }, [filteredReservations])
 
   const exportExcel = useCallback(() => {
+    if (typeof window === "undefined") return
     const headers = ["Client", "Chambre", "Check-in", "Check-out", "Durée (nuits)", "Total ($)", "Statut"]
     const rows = filteredReservations.map((res) => [
       res.client?.full_name || "N/A",
@@ -99,11 +109,7 @@ export function HistoryModule() {
       res.status === "active" ? "Active" : res.status === "completed" ? "Terminée" : "Annulée",
     ])
 
-    const csvContent =
-      "\uFEFF" + // BOM for UTF-8
-      headers.join(";") +
-      "\n" +
-      rows.map((row) => row.join(";")).join("\n")
+    const csvContent = "\uFEFF" + headers.join(";") + "\n" + rows.map((row) => row.join(";")).join("\n")
 
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
     const url = URL.createObjectURL(blob)
@@ -117,6 +123,7 @@ export function HistoryModule() {
   }, [filteredReservations])
 
   const exportPDF = useCallback(() => {
+    if (typeof window === "undefined") return
     const printWindow = window.open("", "_blank")
     if (!printWindow) return
 
@@ -188,6 +195,12 @@ export function HistoryModule() {
     }
   }, [filteredReservations])
 
+  const handlePrint = useCallback(() => {
+    if (typeof window !== "undefined") {
+      window.print()
+    }
+  }, [])
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "active":
@@ -251,7 +264,7 @@ export function HistoryModule() {
               <FileText className="h-4 w-4 mr-2 text-red-500" />
               <span className={textClass}>Export PDF</span>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => window.print()} className="cursor-pointer">
+            <DropdownMenuItem onClick={handlePrint} className="cursor-pointer">
               <Printer className="h-4 w-4 mr-2 text-[#D4AF37]" />
               <span className={textClass}>{t("print")}</span>
             </DropdownMenuItem>

@@ -1,16 +1,17 @@
 "use client"
 
 import { Suspense } from "react"
-import { useSearchParams } from "next/navigation"
-import { ReceptionModule } from "@/components/admin/reception-module"
+import dynamic from "next/dynamic"
 import Image from "next/image"
 
-function ReceptionContent() {
-  const searchParams = useSearchParams()
-  const clientId = searchParams.get("clientId")
+const ReceptionModule = dynamic(
+  () => import("@/components/admin/reception-module").then((mod) => ({ default: mod.ReceptionModule })),
+  { ssr: false },
+)
 
+function ReceptionContent() {
   return (
-    <div className="min-h-screen p-4 lg:p-6">
+    <div className="min-h-screen bg-[#071428] p-4 lg:p-6">
       {/* Header */}
       <div className="glass-card rounded-2xl p-4 mb-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -20,7 +21,6 @@ function ReceptionContent() {
             <p className="text-xs text-white/50">Interface Réceptionniste</p>
           </div>
         </div>
-        {clientId && <span className="text-sm text-[#D4AF37]">Client ID: {clientId}</span>}
       </div>
 
       <ReceptionModule onClientAction={() => {}} />
@@ -30,7 +30,13 @@ function ReceptionContent() {
 
 export default function ReceptionPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-white">Chargement...</div>}>
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#071428] flex items-center justify-center">
+          <div className="w-10 h-10 border-2 border-[#D4AF37] border-t-transparent rounded-full animate-spin" />
+        </div>
+      }
+    >
       <ReceptionContent />
     </Suspense>
   )
