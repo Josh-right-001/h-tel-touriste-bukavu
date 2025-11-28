@@ -2,7 +2,6 @@ import type React from "react"
 import type { Metadata, Viewport } from "next"
 import { Playfair_Display, Inter } from "next/font/google"
 import "./globals.css"
-import { ThemeProvider } from "@/components/theme-provider"
 
 const playfair = Playfair_Display({ subsets: ["latin"], variable: "--font-playfair" })
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" })
@@ -32,17 +31,13 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="fr" suppressHydrationWarning>
+    <html lang="fr" className="dark">
       <head>
         <link rel="apple-touch-icon" href="/icon-512.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
-      <body className={`${playfair.variable} ${inter.variable} font-sans antialiased`}>
-        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange={false}>
-          {children}
-        </ThemeProvider>
-      </body>
+      <body className={`${playfair.variable} ${inter.variable} font-sans antialiased`}>{children}</body>
     </html>
   )
 }
