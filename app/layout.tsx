@@ -2,12 +2,10 @@ import type React from "react"
 import type { Metadata, Viewport } from "next"
 import { Playfair_Display, Inter } from "next/font/google"
 import "./globals.css"
-import dynamic from "next/dynamic"
+import { ClientProviders } from "@/components/client-providers"
 
 const playfair = Playfair_Display({ subsets: ["latin"], variable: "--font-playfair" })
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" })
-
-const AppProviders = dynamic(() => import("@/lib/contexts").then((mod) => mod.AppProviders), { ssr: false })
 
 export const metadata: Metadata = {
   title: "Hôtel Touriste | Bukavu",
@@ -41,7 +39,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
       <body className={`${playfair.variable} ${inter.variable} font-sans antialiased`} suppressHydrationWarning>
-        <AppProviders>{children}</AppProviders>
+        <ClientProviders>{children}</ClientProviders>
       </body>
     </html>
   )
