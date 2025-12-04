@@ -1,18 +1,16 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useRef, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { User, Mail, Globe, FileText, Calendar, Camera, Check, AlertCircle, Loader2, X } from "lucide-react"
+import { User, Mail, Globe, Calendar, Camera, Check, AlertCircle, Loader2, X, CreditCard } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { WhatsAppInput } from "@/components/ui/whatsapp-input"
 import { createClient } from "@/lib/supabase/client"
-import type { Room, RoomType } from "@/lib/types"
 import { useTheme, useLanguage } from "@/lib/contexts"
 
 interface EnhancedClientFormProps {
@@ -20,13 +18,6 @@ interface EnhancedClientFormProps {
   onCancel?: () => void
   isReceptionist?: boolean
 }
-
-const DOCUMENT_TYPES = [
-  { value: "passport", label: "Passeport" },
-  { value: "carte_id", label: "Carte d'identité" },
-  { value: "permis", label: "Permis de conduire" },
-  { value: "carte_electeur", label: "Carte d'électeur" },
-]
 
 export function EnhancedClientForm({ onSuccess, onCancel, isReceptionist = false }: EnhancedClientFormProps) {
   const { resolvedTheme } = useTheme()
@@ -46,53 +37,19 @@ export function EnhancedClientForm({ onSuccess, onCancel, isReceptionist = false
     whatsappNumber: "",
     whatsappCountryCode: "+243",
     email: "",
-    documentType: "",
     commentaire: "",
     numberOfDays: 1,
-    roomTypeId: "",
   })
 
   const [whatsappValid, setWhatsappValid] = useState(false)
-  const [rooms, setRooms] = useState<Room[]>([])
-  const [roomTypes, setRoomTypes] = useState<RoomType[]>([])
-  const [availableRooms, setAvailableRooms] = useState<Room[]>([])
-  const [selectedRoom, setSelectedRoom] = useState<string>("")
   const [isLoading, setIsLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Camera/document states
   const [showCamera, setShowCamera] = useState(false)
-  const [capturedImage, setCapturedImage] = useState<string | null>(null)
+  const [capturedIdImage, setCapturedIdImage] = useState<string | null>(null)
   const [isScanning, setIsScanning] = useState(false)
   const [extractedData, setExtractedData] = useState<Record<string, string> | null>(null)
-
-  useEffect(() => {
-    const fetchData = async () => {
-      const supabase = createClient()
-      if (!supabase) return
-
-      const [roomsRes, typesRes] = await Promise.all([
-        supabase.from("rooms").select("*").eq("status", "Disponible"),
-        supabase.from("room_types").select("*"),
-      ])
-
-      setRooms(roomsRes.data || [])
-      setRoomTypes(typesRes.data || [])
-      setAvailableRooms(roomsRes.data || [])
-    }
-
-    fetchData()
-  }, [])
-
-  useEffect(() => {
-    if (formData.roomTypeId && formData.roomTypeId !== "all") {
-      const filtered = rooms.filter((r) => r.room_type_id === formData.roomTypeId)
-      setAvailableRooms(filtered)
-    } else {
-      setAvailableRooms(rooms)
-    }
-  }, [formData.roomTypeId, rooms])
 
   const handleWhatsappChange = useCallback((number: string, countryCode: string, isValid: boolean) => {
     setFormData((prev) => ({
@@ -103,7 +60,7 @@ export function EnhancedClientForm({ onSuccess, onCancel, isReceptionist = false
     setWhatsappValid(isValid)
   }, [])
 
-  // Camera functions
+  // Camera functions for ID card capture
   const startCamera = async () => {
     setShowCamera(true)
     try {
@@ -116,7 +73,16 @@ export function EnhancedClientForm({ onSuccess, onCancel, isReceptionist = false
     } catch (err) {
       console.error("Camera error:", err)
       setError("Impossible d'accéder à la caméra")
+      setShowCamera(false)
     }
+  }
+
+  const stopCamera = () => {
+    if (videoRef.current) {
+      const stream = videoRef.current.srcObject as MediaStream
+      stream?.getTracks().forEach((track) => track.stop())
+    }
+    setShowCamera(false)
   }
 
   const capturePhoto = () => {
@@ -127,13 +93,8 @@ export function EnhancedClientForm({ onSuccess, onCancel, isReceptionist = false
         canvasRef.current.height = videoRef.current.videoHeight
         context.drawImage(videoRef.current, 0, 0)
         const imageData = canvasRef.current.toDataURL("image/jpeg")
-        setCapturedImage(imageData)
-
-        // Stop camera
-        const stream = videoRef.current.srcObject as MediaStream
-        stream?.getTracks().forEach((track) => track.stop())
-        setShowCamera(false)
-
+        setCapturedIdImage(imageData)
+        stopCamera()
         // Simulate OCR extraction
         simulateOCR()
       }
@@ -142,14 +103,18 @@ export function EnhancedClientForm({ onSuccess, onCancel, isReceptionist = false
 
   const simulateOCR = () => {
     setIsScanning(true)
-    // Simulate OCR processing delay
     setTimeout(() => {
       setExtractedData({
         detected: "true",
-        documentNumber: "DOC-" + Math.random().toString(36).substring(7).toUpperCase(),
+        documentNumber: "ID-" + Math.random().toString(36).substring(2, 8).toUpperCase(),
       })
       setIsScanning(false)
     }, 2000)
+  }
+
+  const removeIdImage = () => {
+    setCapturedIdImage(null)
+    setExtractedData(null)
   }
 
   const generateMatricule = () => {
@@ -184,12 +149,6 @@ export function EnhancedClientForm({ onSuccess, onCancel, isReceptionist = false
       return
     }
 
-    if (!selectedRoom) {
-      setError("Veuillez sélectionner une chambre")
-      setIsLoading(false)
-      return
-    }
-
     try {
       const supabase = createClient()
       if (!supabase) throw new Error("Supabase client not available")
@@ -217,8 +176,8 @@ export function EnhancedClientForm({ onSuccess, onCancel, isReceptionist = false
           whatsapp_number: formData.whatsappNumber,
           whatsapp_country_code: formData.whatsappCountryCode,
           email: formData.email || null,
-          document_type: formData.documentType || null,
-          document_scan_url: capturedImage || null,
+          document_type: capturedIdImage ? "carte_identite" : null,
+          document_scan_url: capturedIdImage || null,
           document_data: extractedData || null,
           commentaire: formData.commentaire || null,
           nationality: formData.paysOrigine || null,
@@ -236,49 +195,21 @@ export function EnhancedClientForm({ onSuccess, onCancel, isReceptionist = false
 
       if (clientError) throw clientError
 
-      // Get room price
-      const room = availableRooms.find((r) => r.id === selectedRoom)
-      const roomType = roomTypes.find((t) => t.id === room?.room_type_id)
-      const totalPrice = (roomType?.base_price || 0) * formData.numberOfDays
-
-      // Create reservation
-      const checkInDate = new Date()
-      const checkOutDate = new Date()
-      checkOutDate.setDate(checkOutDate.getDate() + formData.numberOfDays)
-
-      await supabase.from("reservations").insert({
-        client_id: client.id,
-        room_id: selectedRoom,
-        check_in_date: checkInDate.toISOString().split("T")[0],
-        check_out_date: checkOutDate.toISOString().split("T")[0],
-        number_of_days: formData.numberOfDays,
-        total_price: totalPrice,
-        status: "active",
-        notes: formData.commentaire || null,
-        created_by: isReceptionist ? "receptionniste" : "admin",
-      })
-
-      // Update room status
-      await supabase
-        .from("rooms")
-        .update({ status: "Occupée", updated_at: new Date().toISOString() })
-        .eq("id", selectedRoom)
-
       // Create notification
       await supabase.from("notifications").insert({
         titre: isDuplicate ? "Client fidèle détecté" : "Nouveau client enregistré",
         body: isDuplicate
           ? `${fullName} est un client récurrent. Fidélité: ${Math.min((duplicate.fidelite_score || 0) + 10, 100)}%`
-          : `${fullName} a été enregistré dans la chambre ${room?.room_number}`,
+          : `${fullName} a été enregistré avec succès`,
         client_id: client.id,
         type: isDuplicate ? "doublon_detecte" : "client_enregistre",
       })
 
-      // If document was scanned, add notification
-      if (capturedImage) {
+      // If ID was scanned, add notification
+      if (capturedIdImage) {
         await supabase.from("notifications").insert({
-          titre: "Document scanné",
-          body: `Document ${formData.documentType} scanné pour ${fullName}`,
+          titre: "Carte d'identité capturée",
+          body: `Carte d'identité capturée pour ${fullName}`,
           client_id: client.id,
           type: "document_scanne",
         })
@@ -422,53 +353,47 @@ export function EnhancedClientForm({ onSuccess, onCancel, isReceptionist = false
             required
           />
 
-          {/* Document section */}
           <div className="space-y-4">
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className={labelClass}>Type de document</Label>
-                <Select
-                  value={formData.documentType}
-                  onValueChange={(value) => {
-                    setFormData({ ...formData, documentType: value })
-                    if (value) startCamera()
-                  }}
+            <div className="flex items-center justify-between">
+              <Label className={`flex items-center gap-2 ${labelClass}`}>
+                <CreditCard className="h-4 w-4 text-[#D4AF37]" />
+                Capture carte d&apos;identité (optionnel)
+              </Label>
+              {!capturedIdImage && !showCamera && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={startCamera}
+                  className={
+                    isDark
+                      ? "border-[#D4AF37]/30 text-[#D4AF37] hover:bg-[#D4AF37]/10"
+                      : "border-[#D4AF37] text-[#D4AF37] hover:bg-[#D4AF37]/10"
+                  }
                 >
-                  <SelectTrigger className={inputClass}>
-                    <SelectValue placeholder="Sélectionner le type" />
-                  </SelectTrigger>
-                  <SelectContent className={isDark ? "glass-card border-[#D4AF37]/20" : "bg-white border-slate-200"}>
-                    {DOCUMENT_TYPES.map((doc) => (
-                      <SelectItem key={doc.value} value={doc.value}>
-                        {doc.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label className={labelClass}>Nombre de jours *</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={formData.numberOfDays}
-                  onChange={(e) => setFormData({ ...formData, numberOfDays: Number.parseInt(e.target.value) || 1 })}
-                  className={inputClass}
-                  required
-                />
-              </div>
+                  <Camera className="h-4 w-4 mr-2" />
+                  Capturer
+                </Button>
+              )}
             </div>
 
-            {/* Camera/Document capture */}
+            {/* Camera view */}
             <AnimatePresence>
               {showCamera && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="relative rounded-lg overflow-hidden"
+                  className="relative rounded-xl overflow-hidden border-2 border-dashed border-[#D4AF37]/30"
                 >
                   <video ref={videoRef} autoPlay playsInline className="w-full rounded-lg" />
+                  <div className="absolute inset-0 pointer-events-none">
+                    {/* ID card frame guide */}
+                    <div className="absolute inset-8 border-2 border-[#D4AF37]/50 rounded-lg" />
+                    <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/50 text-white text-sm px-3 py-1 rounded-full">
+                      Positionnez la carte dans le cadre
+                    </div>
+                  </div>
                   <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
                     <Button
                       type="button"
@@ -481,11 +406,8 @@ export function EnhancedClientForm({ onSuccess, onCancel, isReceptionist = false
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => {
-                        const stream = videoRef.current?.srcObject as MediaStream
-                        stream?.getTracks().forEach((track) => track.stop())
-                        setShowCamera(false)
-                      }}
+                      onClick={stopCamera}
+                      className="bg-white/10 border-white/20 text-white hover:bg-white/20"
                     >
                       <X className="h-4 w-4 mr-2" />
                       Annuler
@@ -496,99 +418,77 @@ export function EnhancedClientForm({ onSuccess, onCancel, isReceptionist = false
               )}
             </AnimatePresence>
 
-            {/* Captured document preview */}
-            {capturedImage && (
+            {/* Captured ID preview */}
+            {capturedIdImage && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={`p-4 rounded-lg border ${isDark ? "bg-white/5 border-white/10" : "bg-slate-50 border-slate-200"}`}
+                className={`p-4 rounded-xl border ${isDark ? "bg-white/5 border-[#D4AF37]/20" : "bg-slate-50 border-slate-200"}`}
               >
                 <div className="flex items-start gap-4">
-                  <img
-                    src={capturedImage || "/placeholder.svg"}
-                    alt="Document"
-                    className="w-32 h-20 object-cover rounded"
-                  />
+                  <div className="relative">
+                    <img
+                      src={capturedIdImage || "/placeholder.svg"}
+                      alt="Carte d'identité"
+                      className="w-40 h-24 object-cover rounded-lg border border-[#D4AF37]/20"
+                    />
+                    <button
+                      type="button"
+                      onClick={removeIdImage}
+                      className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-colors"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
-                      <FileText className="h-4 w-4 text-[#D4AF37]" />
-                      <span className={isDark ? "text-white" : "text-slate-900"}>Document scanné</span>
+                      <CreditCard className="h-4 w-4 text-[#D4AF37]" />
+                      <span className={isDark ? "text-white font-medium" : "text-slate-900 font-medium"}>
+                        Carte d&apos;identité capturée
+                      </span>
                     </div>
                     {isScanning ? (
                       <div className="flex items-center gap-2">
                         <Loader2 className="h-4 w-4 animate-spin text-[#D4AF37]" />
-                        <span className={isDark ? "text-white/60" : "text-slate-500"}>Analyse OCR en cours...</span>
+                        <span className={isDark ? "text-white/60 text-sm" : "text-slate-500 text-sm"}>
+                          Analyse en cours...
+                        </span>
                       </div>
                     ) : extractedData ? (
                       <div className="flex items-center gap-2 text-emerald-500">
                         <Check className="h-4 w-4" />
-                        <span>Document vérifié - N°: {extractedData.documentNumber}</span>
+                        <span className="text-sm">Document vérifié - Réf: {extractedData.documentNumber}</span>
                       </div>
                     ) : null}
                   </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => {
-                      setCapturedImage(null)
-                      setExtractedData(null)
-                    }}
-                    className={isDark ? "text-white/40 hover:text-white" : "text-slate-400 hover:text-slate-900"}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
                 </div>
               </motion.div>
             )}
           </div>
 
-          {/* Room selection */}
+          {/* Number of days */}
           <div className="grid md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className={labelClass}>Type de chambre</Label>
-              <Select
-                value={formData.roomTypeId}
-                onValueChange={(value) => setFormData({ ...formData, roomTypeId: value })}
-              >
-                <SelectTrigger className={inputClass}>
-                  <SelectValue placeholder="Tous les types" />
-                </SelectTrigger>
-                <SelectContent className={isDark ? "glass-card border-[#D4AF37]/20" : "bg-white border-slate-200"}>
-                  <SelectItem value="all">Tous les types</SelectItem>
-                  {roomTypes.map((type) => (
-                    <SelectItem key={type.id} value={type.id}>
-                      {type.name} - ${type.base_price}/nuit
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label className={labelClass}>Chambre disponible *</Label>
-              <Select value={selectedRoom} onValueChange={setSelectedRoom}>
-                <SelectTrigger className={inputClass}>
-                  <SelectValue placeholder="Sélectionner une chambre" />
-                </SelectTrigger>
-                <SelectContent className={isDark ? "glass-card border-[#D4AF37]/20" : "bg-white border-slate-200"}>
-                  {availableRooms.map((room) => (
-                    <SelectItem key={room.id} value={room.id}>
-                      Chambre {room.room_number} - Étage {room.floor}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label className={labelClass}>Nombre de jours de séjour *</Label>
+              <Input
+                type="number"
+                min={1}
+                value={formData.numberOfDays}
+                onChange={(e) => setFormData({ ...formData, numberOfDays: Number.parseInt(e.target.value) || 1 })}
+                className={inputClass}
+                required
+              />
             </div>
           </div>
 
           {/* Comments */}
           <div className="space-y-2">
-            <Label className={labelClass}>Commentaire interne</Label>
+            <Label className={labelClass}>Commentaires / Notes</Label>
             <Textarea
               value={formData.commentaire}
               onChange={(e) => setFormData({ ...formData, commentaire: e.target.value })}
-              placeholder="Notes internes sur le client..."
-              className={inputClass}
+              placeholder="Notes additionnelles sur le client..."
+              className={`min-h-[80px] ${inputClass}`}
             />
           </div>
 
@@ -597,7 +497,7 @@ export function EnhancedClientForm({ onSuccess, onCancel, isReceptionist = false
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500"
+              className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400"
             >
               <AlertCircle className="h-4 w-4" />
               <span className="text-sm">{error}</span>
@@ -608,21 +508,25 @@ export function EnhancedClientForm({ onSuccess, onCancel, isReceptionist = false
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="flex items-center gap-2 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-500"
+              className="flex items-center gap-2 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400"
             >
               <Check className="h-4 w-4" />
-              <span className="text-sm">Client enregistré avec succès!</span>
+              <span className="text-sm">Client enregistré avec succès !</span>
             </motion.div>
           )}
 
-          {/* Actions */}
-          <div className="flex gap-3">
+          {/* Action buttons */}
+          <div className="flex gap-3 pt-4">
             {onCancel && (
               <Button
                 type="button"
                 variant="outline"
                 onClick={onCancel}
-                className={isDark ? "border-white/10 text-white hover:bg-white/5" : ""}
+                className={
+                  isDark
+                    ? "border-white/20 text-white/70 hover:bg-white/5"
+                    : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                }
               >
                 Annuler
               </Button>
@@ -633,7 +537,11 @@ export function EnhancedClientForm({ onSuccess, onCancel, isReceptionist = false
               className="flex-1 bg-gradient-to-r from-[#D4AF37] to-[#F4D03F] hover:from-[#F4D03F] hover:to-[#D4AF37] text-[#071428] font-semibold h-12"
             >
               {isLoading ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}
+                  className="h-5 w-5 border-2 border-[#071428] border-t-transparent rounded-full"
+                />
               ) : (
                 <>
                   <Check className="h-5 w-5 mr-2" />
