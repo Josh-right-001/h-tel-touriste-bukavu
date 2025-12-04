@@ -9,11 +9,36 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" })
 
 export const metadata: Metadata = {
   title: "Hôtel Touriste | Bukavu",
-  description: "Application de gestion hôtelière - Hôtel Touriste, Place Mulamba, Bukavu",
+  description:
+    "Application de gestion hôtelière - Hôtel Touriste, Place Mulamba, Bukavu. Réservez votre séjour dans le confort et l'élégance.",
   manifest: "/manifest.json",
   icons: {
     icon: "/icon-192.png",
     apple: "/icon-512.png",
+  },
+  openGraph: {
+    title: "Hôtel Touriste | Bukavu",
+    description:
+      "Application de gestion hôtelière - Hôtel Touriste, Place Mulamba, Bukavu. Réservez votre séjour dans le confort et l'élégance.",
+    url: "https://hotel-touriste-bukavu.vercel.app",
+    siteName: "Hôtel Touriste",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Hôtel Touriste - Bukavu",
+      },
+    ],
+    locale: "fr_FR",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Hôtel Touriste | Bukavu",
+    description:
+      "Application de gestion hôtelière - Hôtel Touriste, Place Mulamba, Bukavu. Réservez votre séjour dans le confort et l'élégance.",
+    images: ["/og-image.png"],
   },
     generator: 'v0.app'
 }

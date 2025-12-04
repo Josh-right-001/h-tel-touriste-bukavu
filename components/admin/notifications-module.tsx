@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { motion } from "framer-motion"
-import { Bell, Check, CheckCheck, User, Bot, AlertCircle, Trash2 } from "lucide-react"
+import { Bell, Check, CheckCheck, User, Bot, AlertCircle, Trash2, Volume2, VolumeX } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -12,37 +12,99 @@ import type { Notification } from "@/lib/types"
 export function NotificationsModule() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [soundEnabled, setSoundEnabled] = useState(true)
+  const [previousCount, setPreviousCount] = useState(0)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const isFirstLoad = useRef(true)
 
-  const fetchNotifications = async () => {
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      audioRef.current = new Audio("https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ding-9HWm68xENLN8ewhJREDB25ZZjWctgk.mp3")
+      audioRef.current.volume = 0.5
+
+      // Load sound preference from localStorage
+      const savedSoundPref = localStorage.getItem("hotel_notification_sound")
+      if (savedSoundPref !== null) {
+        setSoundEnabled(savedSoundPref === "true")
+      }
+    }
+  }, [])
+
+  const playNotificationSound = useCallback(() => {
+    if (soundEnabled && audioRef.current) {
+      audioRef.current.currentTime = 0
+      audioRef.current.play().catch(() => {
+        // Ignore autoplay errors
+      })
+    }
+  }, [soundEnabled])
+
+  const toggleSound = () => {
+    const newValue = !soundEnabled
+    setSoundEnabled(newValue)
+    if (typeof window !== "undefined") {
+      localStorage.setItem("hotel_notification_sound", String(newValue))
+    }
+    // Play a test sound when enabling
+    if (newValue && audioRef.current) {
+      audioRef.current.currentTime = 0
+      audioRef.current.play().catch(() => {})
+    }
+  }
+
+  const fetchNotifications = useCallback(async () => {
     const supabase = createClient()
+    if (!supabase) {
+      setIsLoading(false)
+      return
+    }
+
     const { data } = await supabase.from("notifications").select("*").order("date", { ascending: false })
 
-    setNotifications(data || [])
+    const newNotifications = data || []
+    const newUnreadCount = newNotifications.filter((n) => !n.lu).length
+
+    if (!isFirstLoad.current && newUnreadCount > previousCount) {
+      playNotificationSound()
+    }
+
+    setPreviousCount(newUnreadCount)
+    setNotifications(newNotifications)
     setIsLoading(false)
-  }
+    isFirstLoad.current = false
+  }, [playNotificationSound, previousCount])
 
   useEffect(() => {
     fetchNotifications()
-    // Poll for new notifications
-    const interval = setInterval(fetchNotifications, 10000)
+    // Poll for new notifications every 5 seconds
+    const interval = setInterval(fetchNotifications, 5000)
     return () => clearInterval(interval)
-  }, [])
+  }, [fetchNotifications])
 
   const markAsRead = async (id: string) => {
     const supabase = createClient()
+    if (!supabase) return
     await supabase.from("notifications").update({ lu: true }).eq("id", id)
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, lu: true } : n)))
+    setPreviousCount((prev) => Math.max(0, prev - 1))
   }
 
   const markAllAsRead = async () => {
     const supabase = createClient()
+    if (!supabase) return
     await supabase.from("notifications").update({ lu: true }).eq("lu", false)
     setNotifications((prev) => prev.map((n) => ({ ...n, lu: true })))
+    setPreviousCount(0)
   }
 
   const deleteNotification = async (id: string) => {
     const supabase = createClient()
+    if (!supabase) return
     await supabase.from("notifications").delete().eq("id", id)
+    const notificationToDelete = notifications.find((n) => n.id === id)
+    if (notificationToDelete && !notificationToDelete.lu) {
+      setPreviousCount((prev) => Math.max(0, prev - 1))
+    }
     setNotifications((prev) => prev.filter((n) => n.id !== id))
   }
 
@@ -75,17 +137,28 @@ export function NotificationsModule() {
             {unreadCount} non lue{unreadCount > 1 ? "s" : ""}
           </p>
         </div>
-        {unreadCount > 0 && (
+        <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
-            onClick={markAllAsRead}
+            onClick={toggleSound}
             className="border-[#D4AF37]/30 text-[#D4AF37] hover:bg-[#D4AF37]/10 bg-transparent"
+            title={soundEnabled ? "Désactiver le son" : "Activer le son"}
           >
-            <CheckCheck className="h-4 w-4 mr-2" />
-            Tout marquer comme lu
+            {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
           </Button>
-        )}
+          {unreadCount > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={markAllAsRead}
+              className="border-[#D4AF37]/30 text-[#D4AF37] hover:bg-[#D4AF37]/10 bg-transparent"
+            >
+              <CheckCheck className="h-4 w-4 mr-2" />
+              Tout marquer comme lu
+            </Button>
+          )}
+        </div>
       </motion.div>
 
       {/* Notifications list */}
